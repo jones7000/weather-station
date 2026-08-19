@@ -30,16 +30,19 @@ class Cc1101Receiver {
   // Polls RSSI; if a transmission is detected, busy-captures pulses into
   // the internal buffer (blocking up to CAPTURE_WINDOW_US) and returns true
   // with *count set to the number of pulses recorded. Returns false
-  // immediately if RSSI is below threshold.
+  // immediately if RSSI is below threshold. Either way, last_rssi_dbm()
+  // reflects the RSSI reading this call was based on.
   bool poll(uint16_t *count);
 
   const uint16_t *buffer() const { return buffer_; }
   bool chip_present() const { return chip_present_; }
+  int16_t last_rssi_dbm() const { return last_rssi_dbm_; }
 
  private:
   Config config_{};
   uint16_t buffer_[MAX_PULSES];
   bool chip_present_ = false;
+  int16_t last_rssi_dbm_ = -128;
 };
 
 } // namespace tfa_sky

@@ -23,6 +23,7 @@ class TfaSkyComponent : public Component {
 
   void set_temperature_sensor(sensor::Sensor *s) { temperature_sensor_ = s; }
   void set_humidity_sensor(sensor::Sensor *s) { humidity_sensor_ = s; }
+  void set_signal_strength_sensor(sensor::Sensor *s) { signal_strength_sensor_ = s; }
 
   void setup() override;
   void loop() override;
@@ -39,6 +40,7 @@ class TfaSkyComponent : public Component {
 
   sensor::Sensor *temperature_sensor_{nullptr};
   sensor::Sensor *humidity_sensor_{nullptr};
+  sensor::Sensor *signal_strength_sensor_{nullptr};
 };
 
 } // namespace tfa_sky

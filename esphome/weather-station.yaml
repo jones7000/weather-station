@@ -50,6 +50,8 @@ sensor:
       name: "Außentemperatur"
     humidity:
       name: "Außenluftfeuchtigkeit"
+    signal_strength:
+      name: "Empfangssignal Wetterstation"
 
   - platform: wifi_signal
     name: "WLAN-Signal"

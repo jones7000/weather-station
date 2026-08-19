@@ -15,9 +15,12 @@ from esphome.const import (
     CONF_ID,
     CONF_TEMPERATURE,
     DEVICE_CLASS_HUMIDITY,
+    DEVICE_CLASS_SIGNAL_STRENGTH,
     DEVICE_CLASS_TEMPERATURE,
+    ENTITY_CATEGORY_DIAGNOSTIC,
     STATE_CLASS_MEASUREMENT,
     UNIT_CELSIUS,
+    UNIT_DECIBEL_MILLIWATT,
     UNIT_PERCENT,
 )
 
@@ -31,6 +34,7 @@ CONF_CSN_PIN = "csn_pin"
 CONF_GDO0_PIN = "gdo0_pin"
 CONF_RSSI_THRESHOLD = "rssi_threshold"
 CONF_SENSOR_ID = "sensor_id"
+CONF_SIGNAL_STRENGTH = "signal_strength"
 
 CONFIG_SCHEMA = cv.Schema(
     {
@@ -60,6 +64,16 @@ CONFIG_SCHEMA = cv.Schema(
             device_class=DEVICE_CLASS_HUMIDITY,
             state_class=STATE_CLASS_MEASUREMENT,
         ),
+        # RSSI of the received TFA SKY burst (not the ESP's own WiFi signal -
+        # that's the separate built-in `wifi_signal` platform). Optional,
+        # mainly useful to judge antenna placement/range.
+        cv.Optional(CONF_SIGNAL_STRENGTH): sensor.sensor_schema(
+            unit_of_measurement=UNIT_DECIBEL_MILLIWATT,
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_SIGNAL_STRENGTH,
+            state_class=STATE_CLASS_MEASUREMENT,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -87,6 +101,10 @@ async def to_code(config):
 
     humidity_sensor = await sensor.new_sensor(config[CONF_HUMIDITY])
     cg.add(var.set_humidity_sensor(humidity_sensor))
+
+    if CONF_SIGNAL_STRENGTH in config:
+        signal_strength_sensor = await sensor.new_sensor(config[CONF_SIGNAL_STRENGTH])
+        cg.add(var.set_signal_strength_sensor(signal_strength_sensor))
 
     # Pulls in the same CC1101 driver used by the plain PlatformIO sketches
     # in src/ and tools/. ESPHome's PlatformIO build runs with the library

@@ -24,6 +24,7 @@ void Cc1101Receiver::setup(const Config &config) {
 
 bool Cc1101Receiver::poll(uint16_t *count) {
   int rssi = ELECHOUSE_cc1101.getRssi();
+  last_rssi_dbm_ = (int16_t) rssi;
   if (rssi <= config_.rssi_threshold_dbm) {
     return false;
   }

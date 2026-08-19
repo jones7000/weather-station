@@ -50,6 +50,7 @@ void TfaSkyComponent::loop() {
 
   if (temperature_sensor_ != nullptr) temperature_sensor_->publish_state(frame.temperature_c);
   if (humidity_sensor_ != nullptr) humidity_sensor_->publish_state(frame.humidity_pct);
+  if (signal_strength_sensor_ != nullptr) signal_strength_sensor_->publish_state(receiver_.last_rssi_dbm());
 }
 
 void TfaSkyComponent::dump_config() {
@@ -61,6 +62,7 @@ void TfaSkyComponent::dump_config() {
   }
   LOG_SENSOR("  ", "Temperature", temperature_sensor_);
   LOG_SENSOR("  ", "Humidity", humidity_sensor_);
+  LOG_SENSOR("  ", "Signal Strength", signal_strength_sensor_);
   if (this->is_failed()) {
     ESP_LOGE(TAG, "  CC1101 Init fehlgeschlagen!");
   }
