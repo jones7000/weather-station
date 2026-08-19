@@ -1,0 +1,57 @@
+esphome:
+  name: weather-station
+  friendly_name: Wetterstation
+
+esp8266:
+  board: d1_mini
+
+# Custom component, see components/tfa_sky/ - split into sensor (CC1101 raw
+# capture), decoding (TFA protocol) and esphome (this platform + HA
+# publishing) layers.
+external_components:
+  - source:
+      type: local
+      path: components
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+# No static ssid/password: the device boots straight into its own AP below
+# with a captive portal, so real WLAN credentials are only needed once, after
+# flashing (submitted via the portal and then stored on the device flash -
+# see README "ESPHome / Home Assistant" for the exact steps).
+wifi:
+  ap:
+    ssid: "Weather Station Fallback"
+    password: !secret wifi_ap_password
+
+captive_portal:
+
+sensor:
+  - platform: tfa_sky
+    # Pins/frequency/threshold below match the defaults documented in
+    # README.md - listed explicitly here for visibility, remove any that
+    # you don't need to override.
+    sck_pin: 14
+    miso_pin: 12
+    mosi_pin: 13
+    csn_pin: 15
+    gdo0_pin: 5
+    frequency: 433.92
+    rssi_threshold: -70
+    temperature:
+      name: "Außentemperatur"
+    humidity:
+      name: "Außenluftfeuchtigkeit"
+
+  - platform: wifi_signal
+    name: "WLAN-Signal"
+    entity_category: diagnostic
+    update_interval: 60s

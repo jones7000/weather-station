@@ -13,6 +13,7 @@
           platformio
           esptool
           picocom # fallback serial terminal, in case `pio device monitor` misbehaves
+          esphome # for esphome/weather-station.yaml (production firmware, HA integration)
         ];
 
         shellHook = ''
@@ -20,6 +21,7 @@
           echo "  pio run -e d1_mini -t upload      # build + flash"
           echo "  pio device monitor -b 115200       # serial monitor"
           echo "  pio device list                    # find the serial port"
+          echo "  esphome run esphome/weather-station.yaml   # ESPHome build + flash"
         '';
       };
     };

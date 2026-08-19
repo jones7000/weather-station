@@ -65,6 +65,7 @@ Plausibilitätsprüfung (Temperatur/Feuchte in sinnvollem Bereich).
 4. Rohsignal (Pulslängen) bei erkannter Übertragung aufzeichnen (`raw_capture`)
 5. Protokoll aus den Pulsmustern von Hand rekonstruiert (Bitlayout siehe oben)
 6. Finaler Decoder in `src/main.cpp`
+7. ESPHome-Komponente (`esphome/`) für die Anbindung an Home Assistant
 
 ## Tools (`tools/`)
 
@@ -92,3 +93,40 @@ Gibt bei jeder erkannten Übertragung eine Zeile aus, z.B.:
 ```
 ID=0xC7 Kanal=1 Batterie=ok  Temp=25.0 C  Feuchte=61%  (3/3 Wiederholungen einig)
 ```
+
+## ESPHome / Home Assistant (`esphome/`)
+
+Für den Dauerbetrieb mit Home-Assistant-Anbindung gibt es neben dem PlatformIO-
+Sketch (`src/main.cpp`, weiterhin nützlich für Serial-Debugging ohne HA) eine
+eigenständige ESPHome-Firmware. Sie nutzt dieselbe Hardware/dasselbe Protokoll,
+ist aber sauber in drei Schichten getrennt, als eigene ESPHome external
+component unter `esphome/components/tfa_sky/`:
+
+| Datei | Schicht | Zuständigkeit |
+|---|---|---|
+| `cc1101_receiver.h/.cpp` | **sensor** | CC1101-Setup, RSSI-Polling, rohes Pulslängen-Capture auf GDO0. Kennt das TFA-Protokoll nicht. |
+| `tfa_sky_decoder.h/.cpp` | **decoding** | Reine Protokoll-Logik: Pulslängen → Frame (Temp/Feuchte/ID/...). Kein Hardware- oder ESPHome-Bezug, unabhängig testbar. |
+| `tfa_sky.h/.cpp` + `sensor.py`/`__init__.py` | **esphome** | ESPHome-`Component`, verdrahtet Receiver + Decoder und published Temperatur/Feuchte als `sensor::Sensor` (native API → Home Assistant, Auto-Discovery). |
+
+Die Protokoll-/Capture-Logik ist bewusst eigenständig implementiert und nicht
+mit `src/main.cpp` geteilt, da ESPHome ein eigenes Build-System (eigener
+PlatformIO-Tree pro Kompiliervorgang) hat und ein Cross-Directory-Include
+brüchig wäre. Änderungen am Decoder müssen daher an beiden Stellen
+nachgezogen werden.
+
+### Einrichtung
+
+```
+cd esphome
+cp secrets.yaml.example secrets.yaml   # ausfüllen, siehe Kommentare in der Datei
+esphome run weather-station.yaml       # kompiliert, flasht per USB, öffnet Log
+```
+
+Danach findet Home Assistant das Gerät automatisch über die
+[ESPHome-Integration](https://www.home-assistant.io/integrations/esphome/)
+(mDNS), sofern `api:` aktiv ist - keine manuelle MQTT-Konfiguration nötig.
+
+Pins/Frequenz/RSSI-Schwelle in `weather-station.yaml` entsprechen den Defaults
+aus der Pinbelegung oben und können pro Instanz überschrieben werden. Sind
+mehrere TFA-SKY-Sensoren in Reichweite, lässt sich mit `sensor_id:` (Wert aus
+dem Log ablesen) auf eine feste Sensor-ID filtern.
