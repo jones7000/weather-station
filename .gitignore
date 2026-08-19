@@ -3,3 +3,8 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+# ESPHome build output + local secrets
+esphome/.esphome
+esphome/secrets.yaml
+__pycache__
