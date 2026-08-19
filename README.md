@@ -1,6 +1,6 @@
 # ESP Weather Station
-
-Wemos D1 mini (ESP8266) + CC1101 fangen und decodieren das 433 MHz Funksignal
+* **Reverse engineered TFA Dostmann SKY Outdoor Sensor**
+* Wemos D1 mini (ESP8266) + CC1101 fangen und decodieren das 433 MHz Funksignal
 eines TFA Dostmann SKY Außensensors (Temperatur + Luftfeuchtigkeit), Ausgabe
 per `Serial.print`.
 
