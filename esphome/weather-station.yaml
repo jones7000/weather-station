@@ -29,15 +29,22 @@ ota:
 # see README "ESPHome / Home Assistant" for the exact steps).
 wifi:
   # ESP8266 modem sleep causes dropped API connections on some APs; the device
-  # is mains powered anyway. Slightly reduced TX power lowers the current
-  # spikes on the shared 3.3V rail that also feeds the CC1101.
+  # is mains powered anyway. TX power stays at the 20dB default on purpose:
+  # the WiFi link is weak (~-73dBm) - buffer the CC1101 supply with a cap
+  # instead of lowering TX power to tame current spikes.
   power_save_mode: none
-  output_power: 17dB
   ap:
     ssid: "Weather Station Fallback"
     password: !secret wifi_ap_password
 
 captive_portal:
+
+# Wall-clock time from Home Assistant (synced over the native API, no NTP
+# server needed). Only used to stamp "Letzter Empfang" below - the ESP itself
+# has no RTC, so until the first sync after boot the time is invalid.
+time:
+  - platform: homeassistant
+    id: ha_time
 
 # Diagnostics to tell the failure modes apart after the fact: uptime resets
 # + reset reason show crashes/watchdog resets, loop time shows a blocked
@@ -49,6 +56,17 @@ text_sensor:
   - platform: debug
     reset_reason:
       name: "Reset-Grund"
+
+  # Time of the last valid frame from the outdoor sensor, shown in HA as
+  # "vor 30 Sekunden" etc. Needed because HA's own last-updated/last-changed
+  # only move when the *value* changes - with a steady 2.1 C they would show
+  # "1 hour ago" although a frame arrives every ~64s. Set from the
+  # temperature sensor's on_value below. device_class timestamp expects an
+  # ISO 8601 string with UTC offset (e.g. 2026-11-24T22:57:00+0100).
+  - platform: template
+    id: last_frame
+    name: "Letzter Empfang"
+    device_class: timestamp
 
 sensor:
   - platform: tfa_sky
@@ -65,6 +83,21 @@ sensor:
     timeout: 15min
     temperature:
       name: "Außentemperatur"
+      # on_value fires on every publish, even if the value is unchanged, so
+      # this runs once per accepted frame. Skipped when:
+      # - x is NaN: that's the `timeout` above marking the values unknown,
+      #   not a reception - the timestamp should keep showing when the last
+      #   real frame arrived.
+      # - the clock isn't synced yet (shortly after boot): the timestamp
+      #   would be 1970. The next frame after the sync sets it.
+      on_value:
+        - if:
+            condition:
+              lambda: 'return !std::isnan(x) && id(ha_time).now().is_valid();'
+            then:
+              - text_sensor.template.publish:
+                  id: last_frame
+                  state: !lambda 'return id(ha_time).now().strftime("%Y-%m-%dT%H:%M:%S%z");'
     humidity:
       name: "Außenluftfeuchtigkeit"
     signal_strength:
