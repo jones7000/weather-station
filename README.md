@@ -179,6 +179,9 @@ dem Log ablesen) auf eine feste Sensor-ID filtern.
 - **Diagnose-Sensoren** in der YAML: `Uptime` + `Reset-Grund` (Abstürze und
   Watchdog-Resets), `Loop-Zeit` (blockierte Main-Loop, sollte im
   einstelligen ms-Bereich liegen), `Heap frei` (Speicherlecks).
+- **`Letzter Empfang`** (Zeitstempel-Sensor): Zeitpunkt des letzten gültigen
+  Frames, Uhrzeit kommt von Home Assistant. Anders als `last-updated` in HA
+  läuft er auch weiter, wenn sich die Temperatur nicht ändert.
 - **Hardware-Tipp:** 47-100 µF Elko + 100 nF direkt an VCC/GND des CC1101
   puffern die Stromspitzen beim WLAN-Senden.
 - Der CC1101-Treiber wird direkt aus Git gezogen und ist in `sensor.py` auf
