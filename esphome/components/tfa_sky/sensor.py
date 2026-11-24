@@ -14,11 +14,13 @@ from esphome.const import (
     CONF_HUMIDITY,
     CONF_ID,
     CONF_TEMPERATURE,
+    CONF_TIMEOUT,
     DEVICE_CLASS_HUMIDITY,
     DEVICE_CLASS_SIGNAL_STRENGTH,
     DEVICE_CLASS_TEMPERATURE,
     ENTITY_CATEGORY_DIAGNOSTIC,
     STATE_CLASS_MEASUREMENT,
+    STATE_CLASS_TOTAL_INCREASING,
     UNIT_CELSIUS,
     UNIT_DECIBEL_MILLIWATT,
     UNIT_PERCENT,
@@ -35,6 +37,13 @@ CONF_GDO0_PIN = "gdo0_pin"
 CONF_RSSI_THRESHOLD = "rssi_threshold"
 CONF_SENSOR_ID = "sensor_id"
 CONF_SIGNAL_STRENGTH = "signal_strength"
+CONF_REINIT_COUNT = "reinit_count"
+
+# Pinned on purpose: the driver is pulled straight from git, and an unpinned
+# reference silently picks up upstream rewrites (v3 renamed the whole class)
+# on the next clean build.
+CC1101_DRIVER_REPO = "https://github.com/LSatan/SmartRC-CC1101-Driver-Lib.git"
+CC1101_DRIVER_COMMIT = "de6757ef633b3e626dae5c7835cdb66ab53f9a1d"
 
 CONFIG_SCHEMA = cv.Schema(
     {
@@ -52,6 +61,10 @@ CONFIG_SCHEMA = cv.Schema(
         # multiple TFA SKY sensors are in range). ID is random per power-up,
         # read it from the logs first.
         cv.Optional(CONF_SENSOR_ID): cv.int_range(min=0, max=255),
+        # If no valid frame arrives for this long, temperature/humidity are
+        # reported as unknown in HA (instead of a stale value) and the CC1101
+        # is re-initialised once. 0s disables it.
+        cv.Optional(CONF_TIMEOUT, default="15min"): cv.positive_time_period_milliseconds,
         cv.Required(CONF_TEMPERATURE): sensor.sensor_schema(
             unit_of_measurement=UNIT_CELSIUS,
             accuracy_decimals=1,
@@ -74,6 +87,15 @@ CONFIG_SCHEMA = cv.Schema(
             state_class=STATE_CLASS_MEASUREMENT,
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
         ),
+        # How often the CC1101 had to be re-initialised since boot (chip hung,
+        # lost its configuration, or reception timed out). Optional, for
+        # diagnosing power/wiring problems.
+        cv.Optional(CONF_REINIT_COUNT): sensor.sensor_schema(
+            accuracy_decimals=0,
+            state_class=STATE_CLASS_TOTAL_INCREASING,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            icon="mdi:restart-alert",
+        ),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -95,6 +117,7 @@ async def to_code(config):
     cg.add(var.set_rssi_threshold(config[CONF_RSSI_THRESHOLD]))
     if CONF_SENSOR_ID in config:
         cg.add(var.set_sensor_id(config[CONF_SENSOR_ID]))
+    cg.add(var.set_timeout(config[CONF_TIMEOUT]))
 
     temperature_sensor = await sensor.new_sensor(config[CONF_TEMPERATURE])
     cg.add(var.set_temperature_sensor(temperature_sensor))
@@ -106,6 +129,10 @@ async def to_code(config):
         signal_strength_sensor = await sensor.new_sensor(config[CONF_SIGNAL_STRENGTH])
         cg.add(var.set_signal_strength_sensor(signal_strength_sensor))
 
+    if CONF_REINIT_COUNT in config:
+        reinit_count_sensor = await sensor.new_sensor(config[CONF_REINIT_COUNT])
+        cg.add(var.set_reinit_count_sensor(reinit_count_sensor))
+
     # Pulls in the same CC1101 driver used by the plain PlatformIO sketches
     # in src/ and tools/. ESPHome's PlatformIO build runs with the library
     # dependency finder off, so the driver's own SPI.h include isn't picked
@@ -114,5 +141,5 @@ async def to_code(config):
     cg.add_library(
         "SmartRC-CC1101-Driver-Lib",
         None,
-        "https://github.com/LSatan/SmartRC-CC1101-Driver-Lib.git",
+        f"{CC1101_DRIVER_REPO}#{CC1101_DRIVER_COMMIT}",
     )

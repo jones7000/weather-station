@@ -28,11 +28,27 @@ ota:
 # flashing (submitted via the portal and then stored on the device flash -
 # see README "ESPHome / Home Assistant" for the exact steps).
 wifi:
+  # ESP8266 modem sleep causes dropped API connections on some APs; the device
+  # is mains powered anyway. Slightly reduced TX power lowers the current
+  # spikes on the shared 3.3V rail that also feeds the CC1101.
+  power_save_mode: none
+  output_power: 17dB
   ap:
     ssid: "Weather Station Fallback"
     password: !secret wifi_ap_password
 
 captive_portal:
+
+# Diagnostics to tell the failure modes apart after the fact: uptime resets
+# + reset reason show crashes/watchdog resets, loop time shows a blocked
+# main loop, free heap shows leaks, reinit counter shows CC1101 trouble.
+debug:
+  update_interval: 60s
+
+text_sensor:
+  - platform: debug
+    reset_reason:
+      name: "Reset-Grund"
 
 sensor:
   - platform: tfa_sky
@@ -46,14 +62,26 @@ sensor:
     gdo0_pin: 5
     frequency: 433.92
     rssi_threshold: -70
+    timeout: 15min
     temperature:
       name: "Außentemperatur"
     humidity:
       name: "Außenluftfeuchtigkeit"
     signal_strength:
       name: "Empfangssignal Wetterstation"
+    reinit_count:
+      name: "CC1101 Neu-Initialisierungen"
 
   - platform: wifi_signal
     name: "WLAN-Signal"
     entity_category: diagnostic
     update_interval: 60s
+
+  - platform: uptime
+    name: "Uptime"
+
+  - platform: debug
+    free:
+      name: "Heap frei"
+    loop_time:
+      name: "Loop-Zeit"

@@ -104,9 +104,9 @@ component unter `esphome/components/tfa_sky/`:
 
 | Datei | Schicht | Zuständigkeit |
 |---|---|---|
-| `cc1101_receiver.h/.cpp` | **sensor** | CC1101-Setup, RSSI-Polling, rohes Pulslängen-Capture auf GDO0. Kennt das TFA-Protokoll nicht. |
+| `cc1101_receiver.h/.cpp` | **sensor** | CC1101-Setup, RSSI-Polling, rohes Pulslängen-Capture auf GDO0 (per Interrupt, blockiert die Main-Loop nicht), Register-Selbstprüfung. Kennt das TFA-Protokoll nicht. |
 | `tfa_sky_decoder.h/.cpp` | **decoding** | Reine Protokoll-Logik: Pulslängen → Frame (Temp/Feuchte/ID/...). Kein Hardware- oder ESPHome-Bezug, unabhängig testbar. |
-| `tfa_sky.h/.cpp` + `sensor.py`/`__init__.py` | **esphome** | ESPHome-`Component`, verdrahtet Receiver + Decoder und published Temperatur/Feuchte/Empfangssignal als `sensor::Sensor` (native API → Home Assistant, Auto-Discovery). |
+| `tfa_sky.h/.cpp` + `sensor.py`/`__init__.py` | **esphome** | ESPHome-`Component`, verdrahtet Receiver + Decoder und published Temperatur/Feuchte/Empfangssignal als `sensor::Sensor` (native API → Home Assistant, Auto-Discovery). Überwacht den CC1101 und initialisiert ihn bei Bedarf neu. |
 
 Die Protokoll-/Capture-Logik ist bewusst eigenständig implementiert und nicht
 mit `src/main.cpp` geteilt, da ESPHome ein eigenes Build-System (eigener
@@ -165,3 +165,22 @@ Pins/Frequenz/RSSI-Schwelle in `weather-station.yaml` entsprechen den Defaults
 aus der Pinbelegung oben und können pro Instanz überschrieben werden. Sind
 mehrere TFA-SKY-Sensoren in Reichweite, lässt sich mit `sensor_id:` (Wert aus
 dem Log ablesen) auf eine feste Sensor-ID filtern.
+
+### Robustheit & Diagnose
+
+- **Funk-Überwachung:** Der CC1101 wird jede Minute geprüft: Antwortet er,
+  stimmen die Konfigurationsregister noch, ist er im RX-Modus? Wenn nicht,
+  wird er automatisch neu initialisiert. Das passiert typischerweise nach
+  einem kurzen Spannungseinbruch auf 3,3 V durch die WLAN-Sendespitzen des
+  ESP8266. Der Zähler `reinit_count` zeigt, wie oft das seit dem Boot nötig war.
+- **`timeout:`** (Default `15min`): Kommt so lange kein gültiger Frame,
+  meldet das Gerät Temperatur/Feuchte als *unbekannt* statt eines veralteten
+  Werts und initialisiert den CC1101 einmal neu. `0s` schaltet das ab.
+- **Diagnose-Sensoren** in der YAML: `Uptime` + `Reset-Grund` (Abstürze und
+  Watchdog-Resets), `Loop-Zeit` (blockierte Main-Loop, sollte im
+  einstelligen ms-Bereich liegen), `Heap frei` (Speicherlecks).
+- **Hardware-Tipp:** 47-100 µF Elko + 100 nF direkt an VCC/GND des CC1101
+  puffern die Stromspitzen beim WLAN-Senden.
+- Der CC1101-Treiber wird direkt aus Git gezogen und ist in `sensor.py` auf
+  einen festen Commit gepinnt, damit ein Clean-Build nicht unbemerkt eine
+  neue Upstream-Version einbaut.
